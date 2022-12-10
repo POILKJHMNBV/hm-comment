@@ -190,6 +190,18 @@ public class UserController {
         return Result.ok(userInfo);
     }
 
+    @PostMapping("/sign")
+    @Operation(summary = "用户签到")
+    public Result sign() {
+        return userService.sign();
+    }
+
+    @GetMapping("/sign/count")
+    @Operation(summary = "用户连续签到统计")
+    public Result signCount() {
+        return userService.signCount();
+    }
+
     @GetMapping("/write")
     public Result write() throws IOException {
         BufferedWriter br = new BufferedWriter(new FileWriter("token.txt"));
