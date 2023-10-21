@@ -35,7 +35,7 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
             // token未上传
             return true;
         }
-        String key = LOGIN_USER_KEY + token;
+        String key = LOGIN_USER_KEY + JwtTokenUtil.getUserIdFromToken(token);
 
         // 2.从redis中获取用户信息
         Map<Object, Object> userMap = stringRedisTemplate.opsForHash().entries(key);
@@ -51,7 +51,7 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
         UserHolder.saveUser(userDTO);
 
         // 5.刷新token有效期
-        // stringRedisTemplate.expire(key, LOGIN_USER_TTL, TimeUnit.SECONDS);
+        stringRedisTemplate.expire(key, LOGIN_USER_TTL, TimeUnit.SECONDS);
 
         return true;
     }
