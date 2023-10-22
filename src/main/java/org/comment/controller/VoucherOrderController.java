@@ -16,7 +16,7 @@ import javax.annotation.Resource;
 @Tag(name = "VoucherOrderController", description = "优惠券订单web接口")
 public class VoucherOrderController {
 
-    @Resource(name = "StreamAsynchronousVoucherOrderServiceImpl")
+    @Resource(name = "BlockingQueueAsynchronousVoucherOrderServiceImpl")
     private IVoucherOrderService voucherOrderService;
 
     /**

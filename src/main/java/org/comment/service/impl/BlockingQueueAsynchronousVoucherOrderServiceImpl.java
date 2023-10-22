@@ -3,6 +3,7 @@ package org.comment.service.impl;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.comment.dto.Result;
+import org.comment.entity.SecKillVoucher;
 import org.comment.entity.VoucherOrder;
 import org.comment.mapper.VoucherOrderMapper;
 import org.comment.service.ISecKillVoucherService;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -108,10 +110,25 @@ public class BlockingQueueAsynchronousVoucherOrderServiceImpl
 
     @Override
     public Result secKillVoucher(Long voucherId) {
-        // 1.获取用户ID
+
+        // 1.查询优惠券信息
+        SecKillVoucher secKillVoucher = secKillVoucherService.getById(voucherId);
+        if (secKillVoucher == null) {
+            return Result.fail("优惠券不存在！");
+        }
+
+        // 2.判断秒杀是否开始和结束
+        if (secKillVoucher.getBeginTime().isAfter(LocalDateTime.now())) {
+            return Result.fail("秒杀活动尚未开始！");
+        }
+        if (secKillVoucher.getEndTime().isBefore(LocalDateTime.now())) {
+            return Result.fail("秒杀活动已经结束！");
+        }
+
+        // 3.获取用户ID
         Long userId = UserHolder.getUser().getId();
 
-        // 2.执行Lua脚本，判断库存是否充足，用户是否已经购买过该优惠券
+        // 4.执行Lua脚本，判断库存是否充足，用户是否已经购买过该优惠券
         Long result = stringRedisTemplate.execute(SEC_KILL_SCRIPT,
                 Collections.emptyList(),
                 voucherId.toString(), userId.toString());
@@ -120,7 +137,7 @@ public class BlockingQueueAsynchronousVoucherOrderServiceImpl
             return Result.fail(result == 1 ? "库存不足" : "该用户已经购买过此优惠券");
         }
 
-        // 3.将订单信息保存至阻塞队列，由异步线程线程从阻塞队列取出订单信息创建订单
+        // 5.将订单信息保存至阻塞队列，由异步线程线程从阻塞队列取出订单信息创建订单
         VoucherOrder voucherOrder = new VoucherOrder();
         long voucherOrderId = redisIdWorker.nextId("voucherOrder");
         voucherOrder.setId(voucherOrderId);
@@ -128,8 +145,10 @@ public class BlockingQueueAsynchronousVoucherOrderServiceImpl
         voucherOrder.setVoucherId(voucherId);
         voucherOrderTasks.add(voucherOrder);
 
-        // 4.获取代理对象，控制事务
-        proxy = (IVoucherOrderService) AopContext.currentProxy();
+        // 6.获取代理对象，控制事务
+        if (proxy == null) {
+            proxy = (IVoucherOrderService) AopContext.currentProxy();
+        }
         return Result.ok(voucherOrderId);
     }
 
